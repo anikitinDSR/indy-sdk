@@ -5,6 +5,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        with:
+          ref: master
+      - run: git checkout HEAD^
       - name: Build IndyPool
         run: docker build -f ci/indy-pool.dockerfile -t test_pool ci
       - name: Create network
