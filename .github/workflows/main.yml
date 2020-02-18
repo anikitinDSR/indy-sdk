@@ -8,8 +8,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/indy_pool@v1
+    - uses: actions/checkout@v1 
     - name: Build docker image with indy pool inside
-      run: Image was built
+      uses: ./.github/actions/indy_pool
     - name: Run test
       run: echo "Not yet"
