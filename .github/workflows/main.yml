@@ -7,6 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1 
+    - uses: actions/cache@v1
     - name: Build docker image with indy pool inside
       run: docker build -f ci/indy-pool.dockerfile -t test_pool ci
     - name: Create network
