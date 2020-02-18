@@ -1,6 +1,6 @@
 name: IndyPool
 on: [push]
-jobs:
+runs:
   build_pool:
     runs-on: ubuntu-latest
     steps:
