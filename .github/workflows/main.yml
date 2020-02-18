@@ -16,4 +16,4 @@ jobs:
     - name: Build client image
       run: docker build -f libindy/ci/ubuntu.dockerfile -t test_client ci
     - name: Run test
-      run: docker run -v libindy/:/home/indy --name indy_client --net=indy-sdk-network --env RUST_TEST_THREADS=1 test_client cargo test
+      run: docker run -v libindy:/home/indy --name indy_client --net=indy-sdk-network --env RUST_TEST_THREADS=1 test_client cargo test
