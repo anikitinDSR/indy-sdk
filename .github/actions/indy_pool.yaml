@@ -1,0 +1,15 @@
+name: IndyPool
+on: [push]
+jobs:
+  build_pool:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: master
+      - name: Build IndyPool
+        run: docker build -f ci/indy-pool.dockerfile -t test_pool ci
+      - name: Create network
+        run: docker network create --subnet=10.0.0.0/8 indy-sdk-network
+      - name: Run IndyPool
+        run: docker run -d --name indy_pool -p 9701-9708:9701-9708 test_pool
