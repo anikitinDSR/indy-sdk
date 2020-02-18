@@ -20,4 +20,4 @@ jobs:
     - name: LS
       run: ls -la
     - name: Run test
-      run: docker run -v $(realpath libindy):/home/indy --name indy_client --net=indy-sdk-network --env RUST_TEST_THREADS=1 test_client cargo test
+      run: docker run -v $(realpath ..)/libindy:/home/indy --name indy_client --net=indy-sdk-network --env RUST_TEST_THREADS=1 test_client cargo test
