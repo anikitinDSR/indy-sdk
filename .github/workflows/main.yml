@@ -12,8 +12,8 @@ jobs:
     - name: Create network
       run: docker network create --subnet=10.0.0.0/8 indy-sdk-network
     - name: Run IndyPool
-      run: docker run -d --name indy_pool -p 9701-9708:9701-9708 test_pool
+      run: docker run -d --name indy_pool -p 9701-9708:9701-9708 --net=indy-sdk-network test_pool
     - name: Build client image
       run: docker build -f libindy/ci/ubuntu.dockerfile -t test_client ci
     - name: Run test
-      run: docker run -d --name client -p 9701:9708:9701-9708 test_client cargo test --color=always --nocapture
+      run: docker run -d --name indy_client --net=indy-sdk-network test_client cargo test --color=always --nocapture
