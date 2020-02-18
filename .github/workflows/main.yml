@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/indy_pool
+    - uses: actions/indy_pool@v1
     - name: Build docker image with indy pool inside
       run: Image was built
     - name: Run test
