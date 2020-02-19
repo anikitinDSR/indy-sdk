@@ -20,7 +20,7 @@ jobs:
     - name: LS
       run: ls -la
     - name: Create container for test
-      run: docker run -di --rm --privileged -u root --name indy_client --net=indy-sdk-network --env RUST_TEST_THREADS=1 --workdir /home/indy/test_dir/libindy test_client
+      run: docker run -di --rm --name indy_client --net=indy-sdk-network --env RUST_TEST_THREADS=1 --workdir /home/indy/test_dir/libindy test_client
     - name: Copy source code
       run: docker cp $(realpath .) indy_client:/home/indy/test_dir
     - name: Run tests
