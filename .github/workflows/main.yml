@@ -27,8 +27,10 @@ jobs:
       run: chmod -R 777 libindy
     - name: Copy source code
       run: docker cp $(realpath .) indy_client:/home/indy/test_dir
-    - name: Run tests
+    - name: Cargo build
       run: docker exec -i --workdir /home/indy/test_dir/libindy indy_client cargo build
+    - name: Cargo test
+      run: docker exec -i --workdir /home/indy/test_dir/libindy indy_client cargo test
     - name: Check disk space
       run: docker exec -i indy_client df -h
     - name: Check local disk size
