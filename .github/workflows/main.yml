@@ -23,10 +23,10 @@ jobs:
       run: docker run -di --rm --privileged --name indy_client --env RUST_TEST_THREADS=1 test_client
     - name: Check disk space
       run: docker exec -i indy_client df -h
+    - name: Chown
+      run: chown -R indy .
     - name: Copy source code
       run: docker cp $(realpath .) indy_client:/home/indy/test_dir
-    - name: Chown
-      run: docker exec -i indy_client chown -R indy /home/indy/test_dir
     - name: Run tests
       run: docker exec -i --workdir /home/indy/test_dir/libindy indy_client cargo build
     - name: Check disk space
