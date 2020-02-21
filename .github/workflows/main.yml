@@ -25,6 +25,8 @@ jobs:
       run: docker exec -i indy_client df -h
     - name: Copy source code
       run: docker cp $(realpath .) indy_client:/home/indy/test_dir
+    - name: Chown
+      run: docker exec -i indy_client chown -R indy /home/indy/test_dir
     - name: Run tests
       run: docker exec -i --workdir /home/indy/test_dir/libindy indy_client cargo build
     - name: Check disk space
