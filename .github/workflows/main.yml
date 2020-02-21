@@ -13,14 +13,12 @@ jobs:
       run: docker exec -i indy_client df -h
     - name: Chown
       run: chmod -R 777 libindy
-#     - name: Copy source code
-#       run: docker cp $(realpath .) indy_client:/home/indy/test_dir
     - name: Cargo build
       run: docker exec -i --workdir /home/indy/test_dir/libindy indy_client cargo build
     - name: Cargo test
       run: docker exec -i --workdir /home/indy/test_dir/libindy indy_client cargo test --test pool high_cases::open::open_pool_ledger_works -- --exact
     - name: Upload artifacts
-    - uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v1
       with:
         name: cargo_builds
         path: ./libindy/target
@@ -38,10 +36,13 @@ jobs:
         run: docker run -d --name indy_pool -p 9701-9708:9701-9708 --net=indy-sdk-network test_pool
       - name: Build client image
         run: docker build -f libindy/ci/ubuntu.dockerfile -t test_client ci
-      - uses: actions/download-artifact@v1
+      - name: Download artifacts
+        uses: actions/download-artifact@v1
         with:
           name: cargo_builds
           path: ./libindy/target
+      - name : Create container for tests
+        run: docker run -di -v $(realpath .):/home/indy/test_dir --rm --privileged --name indy_client --net=indy-sdk-network --env RUST_TEST_THREADS=1 --env RUST_LOG=trace --env TEST_POOL_IP=10.0.0.2 test_client
       - name: Run tests
         run: docker exec -i --workdir /home/indy/test_dir/libindy indy_client cargo test --test pool high_cases::open::open_pool_ledger_works -- --exact
     
