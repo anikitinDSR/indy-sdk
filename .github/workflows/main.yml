@@ -3,36 +3,46 @@ name: CI
 on: [push]
 
 jobs:
-  build:
+  Build:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: Build docker image with indy pool inside
-      run: docker build -f ci/indy-pool.dockerfile -t test_pool --build-arg pool_ip=10.0.0.2 ci
-    - name: Create network
-      run: docker network create --subnet=10.0.0.0/8 indy-sdk-network
-    - name: Run IndyPool
-      run: docker run -d --name indy_pool -p 9701-9708:9701-9708 --net=indy-sdk-network test_pool
-    - name: Build client image
-      run: docker build -f libindy/ci/ubuntu.dockerfile -t test_client ci
-    - name: PWD
-      run: pwd
-    - name: LS
-      run: ls -la
     - name: Create container for test
-      run: docker run -di --rm --privileged --name indy_client --net=indy-sdk-network --env RUST_TEST_THREADS=1 --env RUST_LOG=trace --env TEST_POOL_IP=10.0.0.2 test_client
+      run: docker run -di -v $(realpath .):/home/indy/test_dir --rm --privileged --name indy_client --net=indy-sdk-network --env RUST_TEST_THREADS=1 --env RUST_LOG=trace --env TEST_POOL_IP=10.0.0.2 test_client
     - name: Check disk space
       run: docker exec -i indy_client df -h
     - name: Chown
       run: chmod -R 777 libindy
-    - name: Copy source code
-      run: docker cp $(realpath .) indy_client:/home/indy/test_dir
+#     - name: Copy source code
+#       run: docker cp $(realpath .) indy_client:/home/indy/test_dir
     - name: Cargo build
       run: docker exec -i --workdir /home/indy/test_dir/libindy indy_client cargo build
     - name: Cargo test
       run: docker exec -i --workdir /home/indy/test_dir/libindy indy_client cargo test --test pool high_cases::open::open_pool_ledger_works -- --exact
-    - name: Check disk space
-      run: docker exec -i indy_client df -h
-    - name: Check local disk size
-      run: df -h
+    - name: Upload artifacts
+    - uses: actions/upload-artifact@v1
+      with:
+        name: cargo_builds
+        path: ./libindy/target
+      
+  RunTests:
+    runs-on: ubuntu-latest
+    needs: [Build]
+    steps:
+      - uses: actions/checkout@v1
+      - name: Build docker image with indy pool inside
+        run: docker build -f ci/indy-pool.dockerfile -t test_pool --build-arg pool_ip=10.0.0.2 ci
+      - name: Create network
+        run: docker network create --subnet=10.0.0.0/8 indy-sdk-network
+      - name: Run IndyPool
+        run: docker run -d --name indy_pool -p 9701-9708:9701-9708 --net=indy-sdk-network test_pool
+      - name: Build client image
+        run: docker build -f libindy/ci/ubuntu.dockerfile -t test_client ci
+      - uses: actions/download-artifact@v1
+        with:
+          name: cargo_builds
+          path: ./libindy/target
+      - name: Run tests
+        run: docker exec -i --workdir /home/indy/test_dir/libindy indy_client cargo test --test pool high_cases::open::open_pool_ledger_works -- --exact
+    
       
