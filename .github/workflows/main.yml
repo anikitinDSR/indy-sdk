@@ -8,7 +8,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Build docker image with indy pool inside
-      run: docker build -f ci/indy-pool.dockerfile -t test_pool ci
+      run: docker build -f ci/indy-pool.dockerfile -t test_pool --build-arg pool_ip=10.0.0.2 ci
     - name: Create network
       run: docker network create --subnet=10.0.0.0/8 indy-sdk-network
     - name: Run IndyPool
@@ -20,7 +20,7 @@ jobs:
     - name: LS
       run: ls -la
     - name: Create container for test
-      run: docker run -di --rm --privileged --name indy_client --net=indy-sdk-network --env RUST_TEST_THREADS=1 test_client
+      run: docker run -di --rm --privileged --name indy_client --net=indy-sdk-network --env RUST_TEST_THREADS=1 --env RUST_LOG=trace --env TEST_POOL_IP=10.0.0.2 test_client
     - name: Check disk space
       run: docker exec -i indy_client df -h
     - name: Chown
@@ -30,7 +30,7 @@ jobs:
     - name: Cargo build
       run: docker exec -i --workdir /home/indy/test_dir/libindy indy_client cargo build
     - name: Cargo test
-      run: docker exec -i --workdir /home/indy/test_dir/libindy indy_client cargo test
+      run: docker exec -i --workdir /home/indy/test_dir/libindy indy_client cargo test --test pool high_cases::open::open_pool_ledger_works -- --exact
     - name: Check disk space
       run: docker exec -i indy_client df -h
     - name: Check local disk size
