@@ -23,10 +23,12 @@ jobs:
       run: docker run -di --rm --privileged --name indy_client --net=indy-sdk-network --env RUST_TEST_THREADS=1 test_client
     - name: Check disk space
       run: docker exec -i indy_client df -h
-    - name: check size
-      run: docker exec -i indy_client du -sh /*
-#     - name: Copy source code
-#       run: docker cp $(realpath .) indy_client:/home/indy/test_dir
-#     - name: Run tests
-#       run: docker exec -i --workdir /home/indy/test_dir/libindy indy_client cargo test
+    - name: Copy source code
+      run: docker cp $(realpath .) indy_client:/home/indy/test_dir
+    - name: Run tests
+      run: docker exec -i --workdir /home/indy/test_dir/libindy indy_client cargo test
+    - name: Check disk space
+      run: docker exec -i indy_client df -h
+    - name: Check local disk size
+      run: df -h
       
