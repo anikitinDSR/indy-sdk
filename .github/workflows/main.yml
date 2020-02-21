@@ -7,12 +7,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: Build docker image with indy pool inside
-      run: docker build -f ci/indy-pool.dockerfile -t test_pool ci
-    - name: Create network
-      run: docker network create --subnet=10.0.0.0/8 indy-sdk-network
-    - name: Run IndyPool
-      run: docker run -d --name indy_pool -p 9701-9708:9701-9708 --net=indy-sdk-network test_pool
+#     - name: Build docker image with indy pool inside
+#       run: docker build -f ci/indy-pool.dockerfile -t test_pool ci
+#     - name: Create network
+#       run: docker network create --subnet=10.0.0.0/8 indy-sdk-network
+#     - name: Run IndyPool
+#       run: docker run -d --name indy_pool -p 9701-9708:9701-9708 --net=indy-sdk-network test_pool
     - name: Build client image
       run: docker build -f libindy/ci/ubuntu.dockerfile -t test_client ci
     - name: PWD
@@ -20,13 +20,13 @@ jobs:
     - name: LS
       run: ls -la
     - name: Create container for test
-      run: docker run -di --rm --privileged --name indy_client --net=indy-sdk-network --env RUST_TEST_THREADS=1 test_client
+      run: docker run -di --rm --privileged --name indy_client --env RUST_TEST_THREADS=1 test_client
     - name: Check disk space
       run: docker exec -i indy_client df -h
     - name: Copy source code
       run: docker cp $(realpath .) indy_client:/home/indy/test_dir
     - name: Run tests
-      run: docker exec -i --workdir /home/indy/test_dir/libindy indy_client cargo test
+      run: docker exec -i --workdir /home/indy/test_dir/libindy indy_client cargo build
     - name: Check disk space
       run: docker exec -i indy_client df -h
     - name: Check local disk size
