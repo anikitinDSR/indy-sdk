@@ -6,7 +6,7 @@ jobs:
   Build:
     runs-on: ubuntu-latest
     steps:
-#     - uses: actions/checkout@v1
+    - uses: actions/checkout@v1
     - name: Build client image
       run: docker build -f libindy/ci/ubuntu.dockerfile -t test_client ci
     - name: Create container for test
@@ -25,7 +25,7 @@ jobs:
       uses: actions/upload-artifact@v1
       with:
         name: cargo_builds
-        path: artifacts.zip
+        path: libindy/artifacts.zip
       
   RunTests:
     runs-on: ubuntu-latest
