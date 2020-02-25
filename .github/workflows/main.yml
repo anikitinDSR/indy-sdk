@@ -7,8 +7,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: Artifacts already uploaded
-      run: ls -la
     - name: Build client image
       run: docker build -f libindy/ci/ubuntu.dockerfile -t test_client ci
     - name: Create container for test
@@ -22,7 +20,7 @@ jobs:
 #     - name: Cargo test
 #       run: docker exec -i --workdir /home/indy/test_dir/libindy indy_client cargo test --test pool high_cases::open::open_pool_ledger_works -- --exact
     - name: ZIP artifacts
-      run: zip artifacts.zip ./libindy/target
+      run: zip -r artifacts.zip ./libindy/target
     - name: Upload artifacts
       uses: actions/upload-artifact@v1
       with:
@@ -33,19 +31,19 @@ jobs:
     runs-on: ubuntu-latest
     needs: [Build]
     steps:
+      - uses: actions/checkout@v1
       - run: mkdir artifacts
       - name: Download artifacts
         uses: actions/download-artifact@v1
         with:
           name: cargo_builds
-          path: artifacts
+          path: ./artifacts
       - name: LS
         run: ls -la .
       - name: PWD
         run: pwd
       - name: Unpack artifacts
         run: unzip artifacts/artifacts.zip
-      - uses: actions/checkout@v1
       - name: Build docker image with indy pool inside
         run: docker build -f ci/indy-pool.dockerfile -t test_pool --build-arg pool_ip=10.0.0.2 ci
       - name: Create network
