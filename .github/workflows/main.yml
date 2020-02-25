@@ -17,8 +17,8 @@ jobs:
       run: chmod -R 777 libindy
     - name: Cargo build
       run: docker exec -i --workdir /home/indy/test_dir/libindy indy_client cargo build
-    - name: Cargo test
-      run: docker exec -i --workdir /home/indy/test_dir/libindy indy_client cargo test --test pool high_cases::open::open_pool_ledger_works -- --exact
+#     - name: Cargo test
+#       run: docker exec -i --workdir /home/indy/test_dir/libindy indy_client cargo test --test pool high_cases::open::open_pool_ledger_works -- --exact
     - name: Upload artifacts
       uses: actions/upload-artifact@v1
       with:
