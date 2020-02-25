@@ -46,7 +46,7 @@ jobs:
           name: cargo_builds
           path: artifacts.zip
       - name: Unpack artifacts
-        run: unzip artifacts.zip
+        run: unzip indy-sdk/artifacts.zip
       - name : Create container for tests
         run: docker run -di -v $(realpath .):/home/indy/test_dir --rm --privileged --name indy_client --net=indy-sdk-network --env RUST_TEST_THREADS=1 --env RUST_LOG=trace --env TEST_POOL_IP=10.0.0.2 test_client
       - name: Run tests
