@@ -20,7 +20,7 @@ jobs:
 #     - name: Cargo test
 #       run: docker exec -i --workdir /home/indy/test_dir/libindy indy_client cargo test --test pool high_cases::open::open_pool_ledger_works -- --exact
     - name: ZIP artifacts
-      run: zip -r artifacts.zip ./libindy/target
+      run: docker exec -i --workdir /home/indy/test_dir/libindy zip -r artifacts.zip target
     - name: Upload artifacts
       uses: actions/upload-artifact@v1
       with:
