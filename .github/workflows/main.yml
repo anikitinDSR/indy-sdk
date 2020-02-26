@@ -13,7 +13,7 @@ jobs:
       run: docker run -di -v $(realpath .):/home/indy/test_dir --rm --privileged --name indy_client --env RUST_TEST_THREADS=1 --env RUST_LOG=trace --env TEST_POOL_IP=10.0.0.2 test_client
     - name: Check disk space
       run: docker exec -i indy_client df -h
-    - name: Chown
+    - name: Chmod
       run: chmod -R 777 libindy
     - name: Cargo build
       run: docker exec -i --workdir /home/indy/test_dir/libindy indy_client cargo build
@@ -50,6 +50,8 @@ jobs:
         run: docker network create --subnet=10.0.0.0/8 indy-sdk-network
       - name: Run IndyPool
         run: docker run -d --name indy_pool -p 9701-9708:9701-9708 --net=indy-sdk-network test_pool
+      - name: Chmod
+        run: chmod -R 777 libindy
       - name: Build client image
         run: docker build -f libindy/ci/ubuntu.dockerfile -t test_client ci
       - name : Create container for tests
