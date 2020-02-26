@@ -1,12 +1,13 @@
 use serde_json;
 use serde_json::Value as SJsonValue;
 
-use domain::ledger::constants;
-use errors::prelude::*;
-use services::ledger::merkletree::merkletree::MerkleTree;
-use services::pool::{PoolService, types::*};
+use crate::domain::ledger::constants;
+use indy_api_types::errors::prelude::*;
+use crate::services::ledger::merkletree::merkletree::MerkleTree;
+use crate::services::pool::{PoolService, types:: *};
+use indy_api_types::CommandHandle;
 
-pub const REQUESTS_FOR_STATE_PROOFS: [&str; 10] = [
+pub const REQUESTS_FOR_STATE_PROOFS: [&str; 11] = [
     constants::GET_NYM,
     constants::GET_TXN_AUTHR_AGRMT,
     constants::GET_TXN_AUTHR_AGRMT_AML,
@@ -17,11 +18,25 @@ pub const REQUESTS_FOR_STATE_PROOFS: [&str; 10] = [
     constants::GET_REVOC_REG_DEF,
     constants::GET_REVOC_REG_DELTA,
     constants::GET_AUTH_RULE,
+    constants::GET_TXN,
 ];
 
 const REQUEST_FOR_FULL: [&str; 2] = [
     constants::POOL_RESTART,
     constants::GET_VALIDATOR_INFO,
+];
+
+
+pub const REQUESTS_FOR_STATE_PROOFS_IN_THE_PAST: [&str; 5] = [
+    constants::GET_REVOC_REG,
+    constants::GET_REVOC_REG_DELTA,
+    constants::GET_TXN_AUTHR_AGRMT,
+    constants::GET_TXN_AUTHR_AGRMT_AML,
+    constants::GET_TXN,
+];
+
+pub const REQUESTS_FOR_MULTI_STATE_PROOFS: [&str; 1] = [
+    constants::GET_REVOC_REG_DELTA,
 ];
 
 #[derive(Debug, Clone)]
@@ -54,18 +69,22 @@ pub enum NetworkerEvent {
     Timeout,
 }
 
+pub const COMMAND_EXIT : &str = "exit";
+pub const COMMAND_CONNECT : &str = "connect";
+pub const COMMAND_REFRESH : &str = "refresh";
+
 #[derive(Clone, Debug)]
 pub enum PoolEvent {
-    CheckCache(i32),
+    CheckCache(CommandHandle),
     NodeReply(
         String, // reply
         String, // node alias
     ),
     Close(
-        i32, //cmd_id
+        CommandHandle
     ),
     Refresh(
-        i32, //cmd_id
+        CommandHandle
     ),
     CatchupTargetFound(
         Vec<u8>, //target_mt_root
@@ -84,7 +103,7 @@ pub enum PoolEvent {
     #[allow(dead_code)] //FIXME
     NodesBlacklisted,
     SendRequest(
-        i32, // cmd_id
+        CommandHandle,
         String, // request
         Option<i32>, // timeout
         Option<String>, // node list
@@ -118,7 +137,8 @@ pub enum RequestEvent {
     CustomSingleRequest(
         String, // message
         String, // req_id
-        Option<Vec<u8>>, // expected key for State Proof in Reply
+        Option<Vec<u8>>, // expected key for State Proof in Reply,
+        (Option<u64>, Option<u64>) // expected timestamps for freshness comparison
     ),
     CustomConsensusRequest(
         String, // message
@@ -167,7 +187,7 @@ pub enum RequestEvent {
 impl RequestEvent {
     pub fn get_req_id(&self) -> String {
         match *self {
-            RequestEvent::CustomSingleRequest(_, ref id, _) => id.to_string(),
+            RequestEvent::CustomSingleRequest(_, ref id, _, _) => id.to_string(),
             RequestEvent::CustomConsensusRequest(_, ref id) => id.to_string(),
             RequestEvent::CustomFullRequest(_, ref id, _, _) => id.to_string(),
             RequestEvent::Reply(_, _, _, ref id) => id.to_string(),
@@ -186,8 +206,8 @@ impl Into<Option<RequestEvent>> for PoolEvent {
                 _parse_msg(&msg).map(|parsed|
                     match parsed {
                         //TODO change mapping for CatchupReq. May be return None
-                        //TODO: REMOVE UNWRAP!!!!!
-                        Message::CatchupReq(_) => RequestEvent::CatchupReq(MerkleTree::from_vec(Vec::new()).unwrap(), 0, vec![]),
+                        Message::CatchupReq(_) => RequestEvent::CatchupReq(
+                            MerkleTree::default(), 0, vec![]),
                         Message::CatchupRep(rep) => RequestEvent::CatchupRep(rep, node_alias),
                         Message::LedgerStatus(ls) => RequestEvent::LedgerStatus(ls, Some(node_alias), None),
                         Message::ConsistencyProof(cp) => RequestEvent::ConsistencyProof(cp, node_alias),
@@ -213,8 +233,8 @@ impl Into<Option<RequestEvent>> for PoolEvent {
                     })
             }
             PoolEvent::SendRequest(_, msg, timeout, nodes) => {
-                let req_id = _parse_req_id_and_op(&msg);
-                if let Ok((ref req_id, ref op)) = req_id {
+                let parsed_req = _parse_req_id_and_op(&msg);
+                if let Ok((ref req, ref req_id, ref op)) = parsed_req {
                     if REQUEST_FOR_FULL.contains(&op.as_str()) {
                         Some(RequestEvent::CustomFullRequest(msg, req_id.clone(), timeout, nodes))
                     } else if timeout.is_some() || nodes.is_some() {
@@ -222,17 +242,16 @@ impl Into<Option<RequestEvent>> for PoolEvent {
                                timeout, nodes, op);
                         None
                     } else if REQUESTS_FOR_STATE_PROOFS.contains(&op.as_str()) {
-                        let key = _get_req_json(&msg).ok()
-                            .and_then(|req_json|
-                                super::state_proof::parse_key_from_request_for_builtin_sp(&req_json));
-                        Some(RequestEvent::CustomSingleRequest(msg, req_id.clone(), key))
+                        let key = super::state_proof::parse_key_from_request_for_builtin_sp(&req);
+                        let timestamps = _parse_timestamp_from_req_for_builtin_sp(req, &op);
+                        Some(RequestEvent::CustomSingleRequest(msg, req_id.clone(), key, timestamps))
                     } else if PoolService::get_sp_parser(&op.as_str()).is_some() {
-                        Some(RequestEvent::CustomSingleRequest(msg, req_id.clone(), None))
+                        Some(RequestEvent::CustomSingleRequest(msg, req_id.clone(), None, (None, None)))
                     } else {
                         Some(RequestEvent::CustomConsensusRequest(msg, req_id.clone()))
                     }
                 } else {
-                    error!("Can't parse req_id or op from message {}", msg);
+                    error!("Can't parse parsed_req or op from message {}", msg);
                     None
                 }
             }
@@ -242,22 +261,44 @@ impl Into<Option<RequestEvent>> for PoolEvent {
     }
 }
 
+fn _parse_timestamp_from_req_for_builtin_sp(req: &SJsonValue, op: &str) -> (Option<u64>, Option<u64>) {
+    if !REQUESTS_FOR_STATE_PROOFS_IN_THE_PAST.contains(&op) {
+        return (None, None);
+    }
+
+    if op == constants::GET_TXN {
+        return (None, Some(0));
+    }
+
+    match op {
+        constants::GET_REVOC_REG | constants::GET_TXN_AUTHR_AGRMT | constants::GET_TXN_AUTHR_AGRMT_AML => {
+            (None, req["operation"]["timestamp"].as_u64())
+        }
+        constants::GET_REVOC_REG_DELTA => {
+            (req["operation"]["from"].as_u64(), req["operation"]["to"].as_u64())
+        }
+        _ => { (None, None) }
+    }
+}
+
 fn _parse_msg(msg: &str) -> Option<Message> {
     Message::from_raw_str(msg).map_err(map_err_trace!()).ok()
 }
 
-fn _parse_req_id_and_op(msg: &str) -> IndyResult<(String, String)> {
+fn _parse_req_id_and_op(msg: &str) -> IndyResult<(SJsonValue, String, String)> {
     let req_json = _get_req_json(msg)?;
 
-    let req_id: u64 = req_json["reqId"]
+    let req_id = req_json["reqId"]
         .as_u64()
-        .ok_or(err_msg(IndyErrorKind::InvalidStructure, "No reqId in request"))?;
+        .ok_or_else(|| err_msg(IndyErrorKind::InvalidStructure, "No reqId in request"))?
+        .to_string();
 
     let op = req_json["operation"]["type"]
         .as_str()
-        .ok_or(err_msg(IndyErrorKind::InvalidStructure, "No operation type in request"))?;
+        .ok_or_else(|| err_msg(IndyErrorKind::InvalidStructure, "No operation type in request"))?
+        .to_string();
 
-    Ok((req_id.to_string(), op.to_string()))
+    Ok((req_json, req_id, op))
 }
 
 fn _get_req_json(msg: &str) -> IndyResult<SJsonValue> {

@@ -42,6 +42,8 @@ pub enum VcxErrorKind {
     InvalidLibindyParam,
     #[fail(display = "Library already initialized")]
     AlreadyInitialized,
+    #[fail(display = "Action is not supported")]
+    ActionNotSupported,
 
     // Connection
     #[fail(display = "Could not create connection")]
@@ -50,6 +52,8 @@ pub enum VcxErrorKind {
     InvalidConnectionHandle,
     #[fail(display = "Invalid invite details structure")]
     InvalidInviteDetail,
+    #[fail(display = "Invalid redirect details structure")]
+    InvalidRedirectDetail,
     #[fail(display = "Cannot Delete Connection. Check status of connection is appropriate to be deleted from agency.")]
     DeleteConnection,
     #[fail(display = "Error with Connection")]
@@ -211,7 +215,7 @@ pub struct VcxError {
 }
 
 impl Fail for VcxError {
-    fn cause(&self) -> Option<&Fail> {
+    fn cause(&self) -> Option<&dyn Fail> {
         self.inner.cause()
     }
 
@@ -305,6 +309,7 @@ impl From<VcxErrorKind> for u32 {
             VcxErrorKind::CreateConnection => error::CREATE_CONNECTION_ERROR.code_num,
             VcxErrorKind::InvalidConnectionHandle => error::INVALID_CONNECTION_HANDLE.code_num,
             VcxErrorKind::InvalidInviteDetail => error::INVALID_INVITE_DETAILS.code_num,
+            VcxErrorKind::InvalidRedirectDetail => error::INVALID_REDIRECT_DETAILS.code_num,
             VcxErrorKind::DeleteConnection => error::CANNOT_DELETE_CONNECTION.code_num,
             VcxErrorKind::CreateCredDef => error::CREATE_CREDENTIAL_DEF_ERR.code_num,
             VcxErrorKind::CredDefAlreadyCreated => error::CREDENTIAL_DEF_ALREADY_CREATED.code_num,
@@ -364,6 +369,7 @@ impl From<VcxErrorKind> for u32 {
             VcxErrorKind::MissingExportedWalletPath => error::MISSING_EXPORTED_WALLET_PATH.code_num,
             VcxErrorKind::MissingBackupKey => error::MISSING_BACKUP_KEY.code_num,
             VcxErrorKind::UnknownLiibndyError => error::UNKNOWN_LIBINDY_ERROR.code_num,
+            VcxErrorKind::ActionNotSupported => error::ACTION_NOT_SUPPORTED.code_num,
             VcxErrorKind::Common(num) => num,
             VcxErrorKind::LiibndyError(num) => num,
         }
@@ -407,7 +413,7 @@ pub fn reset_current_error() {
 }
 
 pub fn set_current_error(err: &VcxError) {
-    CURRENT_ERROR_C_JSON.with(|error| {
+    CURRENT_ERROR_C_JSON.try_with(|error| {
         let error_json = json!({
             "error": err.kind().to_string(),
             "message": err.to_string(),
@@ -415,15 +421,17 @@ pub fn set_current_error(err: &VcxError) {
             "backtrace": err.backtrace().map(|bt| bt.to_string())
         }).to_string();
         error.replace(Some(CStringUtils::string_to_cstring(error_json)));
-    });
+    })
+        .map_err(|err| error!("Thread local variable access failed with: {:?}", err)).ok();
 }
 
 pub fn get_current_error_c_json() -> *const c_char {
     let mut value = ptr::null();
 
-    CURRENT_ERROR_C_JSON.with(|err|
+    CURRENT_ERROR_C_JSON.try_with(|err|
         err.borrow().as_ref().map(|err| value = err.as_ptr())
-    );
+    )
+        .map_err(|err| error!("Thread local variable access failed with: {:?}", err)).ok();
 
     value
 }
